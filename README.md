@@ -41,108 +41,74 @@ Train the model, evaluate using validation data, and compute performance metrics
 ## PROGRAM
 Include your code here
 ```python
-# Load Pretrained Model and Modify for Transfer Learning
-model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+model = models.vgg19(pretrained=True)
 
-# Freeze all layers
-for param in model.parameters():
-    param.requires_grad = False
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = model.to(device)
 
-# Replace final layer
-model.fc = nn.Linear(model.fc.in_features, 10)
+from torchsummary import summary
+summary(model, input_size=(3, 224, 224))
+
+# Modify final layer
+num_classes = len(train_dataset.classes)
+
+model.classifier[6] = nn.Linear(model.classifier[6].in_features, num_classes)
 
 model = model.to(device)
 
+summary(model, input_size=(3, 224, 224))
 
 
-# Modify the final fully connected layer to match the dataset classes
-transform = transforms.Compose([
-    transforms.Resize((128, 128)),   # Smaller than 224 → Faster
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225])
-])
+for param in model.features.parameters():
+    param.requires_grad = False
 
-train_dataset = torchvision.datasets.CIFAR10(
-    root='./data', train=True, download=True, transform=transform)
-
-test_dataset = torchvision.datasets.CIFAR10(
-    root='./data', train=False, download=True, transform=transform)
-
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
-
-class_names = train_dataset.classes
-
-# data procession:
-transform = transforms.Compose([
-    transforms.Resize((128, 128)),   # Smaller than 224 → Faster
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225])
-])
-
-train_dataset = torchvision.datasets.CIFAR10(
-    root='./data', train=True, download=True, transform=transform)
-
-test_dataset = torchvision.datasets.CIFAR10(
-    root='./data', train=False, download=True, transform=transform)
-
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
-
-class_names = train_dataset.classes
-
-
-
-# Include the Loss function and optimizer
-
+# Define Loss Function
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.fc.parameters(), lr=0.001)
 
-
-
-# Train the model
-train_loss_list = []
-val_loss_list = []
-
-epochs = 3   # Reduced for speed
-
-for epoch in range(epochs):
+# Define Optimizer (ONLY classifier parameters)
+optimizer = optim.Adam(model.classifier.parameters(), lr=0.001)
+def train_model(model, train_loader,test_loader,num_epochs=10):
+    train_losses = []
+    val_losses = []
     model.train()
-    running_loss = 0.0
-    
-    for images, labels in train_loader:
-        images, labels = images.to(device), labels.to(device)
-        
-        optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        
-        running_loss += loss.item()
-    
-    train_loss = running_loss / len(train_loader)
-    train_loss_list.append(train_loss)
-    
-    # Validation
-    model.eval()
-    val_loss = 0.0
-    
-    with torch.no_grad():
-        for images, labels in test_loader:
+    for epoch in range(num_epochs):
+        running_loss = 0.0
+        for images, labels in train_loader:
             images, labels = images.to(device), labels.to(device)
+            optimizer.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, labels)
-            val_loss += loss.item()
-    
-    val_loss = val_loss / len(test_loader)
-    val_loss_list.append(val_loss)
-    
-    print(f"Epoch [{epoch+1}/{epochs}] "
-          f"Train Loss: {train_loss:.4f} "
-          f"Val Loss: {val_loss:.4f}")
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
+        train_losses.append(running_loss / len(train_loader))
+
+        # Compute validation loss
+        model.eval()
+        val_loss = 0.0
+        with torch.no_grad():
+            for images, labels in test_loader:
+                images, labels = images.to(device), labels.to(device)
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+                val_loss += loss.item()
+
+        val_losses.append(val_loss / len(test_loader))
+        model.train()
+
+        print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {train_losses[-1]:.4f}, Validation Loss: {val_losses[-1]:.4f}')
+
+    # Plot training and validation loss
+    print("Name:  SHIVASRI      ")
+    print("Register Number:   212224220098     ")
+    plt.figure(figsize=(8, 6))
+    plt.plot(range(1, num_epochs + 1), train_losses, label='Train Loss', marker='o')
+    plt.plot(range(1, num_epochs + 1), val_losses, label='Validation Loss', marker='s')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title('Training and Validation Loss')
+    plt.legend()
+    plt.show()
 
 
 
@@ -151,21 +117,28 @@ for epoch in range(epochs):
 ## OUTPUT
 ### Training Loss, Validation Loss Vs Iteration Plot
 Include your plot here
-<img width="1025" height="781" alt="image" src="https://github.com/user-attachments/assets/a0de1b1a-335c-4bd7-8736-796d3d459efc" />
+
+<img width="935" height="752" alt="image" src="https://github.com/user-attachments/assets/700457ff-04ac-4830-9427-0b3dbca89680" />
+
 
 
 ### Confusion Matrix
 Include confusion matrix here
-<img width="893" height="758" alt="image" src="https://github.com/user-attachments/assets/47e2c25b-2b99-40bb-a032-020512eda883" />
+
+<img width="840" height="607" alt="image" src="https://github.com/user-attachments/assets/420fcaf5-3b3b-4732-ba45-5c36a04fd499" />
 
 
 ### Classification Report
 Include Classification Report here
-<img width="1054" height="459" alt="image" src="https://github.com/user-attachments/assets/442cb7aa-0597-493b-a8a0-df3ae903a48a" />
+
+<img width="761" height="225" alt="image" src="https://github.com/user-attachments/assets/529692fd-2042-44a7-9787-c389c114e458" />
+
 
 
 ### New Sample Prediction
-<img width="1745" height="655" alt="image" src="https://github.com/user-attachments/assets/0cac03a7-1b9f-48f6-acee-16488049c3e5" />
+
+<img width="467" height="826" alt="image" src="https://github.com/user-attachments/assets/ae2b4cb7-586a-44bc-bab5-493536564ffc" />
+
 >
 
 ## RESULT
