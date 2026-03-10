@@ -137,7 +137,7 @@ Include Classification Report here
 
 ### New Sample Prediction
 
-<img width="467" height="826" alt="image" src="https://github.com/user-attachments/assets/ae2b4cb7-586a-44bc-bab5-493536564ffc" />
+<img width="506" height="799" alt="image" src="https://github.com/user-attachments/assets/d84841cb-9be7-49c1-aa15-85a512aeb512" />
 
 >
 
